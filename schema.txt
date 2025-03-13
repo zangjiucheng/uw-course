@@ -1,4 +1,4 @@
-Class2025Winter # Class{year}{Winter/Summer/Fall}
+Class2025Winter # Class{year}{Winter/Spring/Fall}
 
 PHYS 234, 7166
 CS 431, 8788
