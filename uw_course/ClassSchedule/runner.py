@@ -1,38 +1,49 @@
-from .SearchInfo import Course
-from ..Utiles.randomColor import randomColor, randomGray
-from ..setting import Setting
-from ..Utiles.colorMessage import *
+from uw_course.ClassSchedule.SearchInfo import Course
+from uw_course.Utiles.randomColor import randomColor, randomGray
+from uw_course.setting import Setting
 
 from os import remove
 
 setting = Setting()
 
 
-def SearchCourse(dbClassUW, courseIndex):
+def get_course_detail(dbClassUW, courseIndex):
     CourseDescribe = dbClassUW.CourseDescribe
+    if not courseIndex or " " not in courseIndex:
+        return None
     faculty = courseIndex.split(" ")[0]
     courseNum = courseIndex.split(" ")[1]
     FacultyList = CourseDescribe.find({"faculty": faculty})
     for course in FacultyList:
-        if course["courseIndex"] == courseNum:
-            print("\n" + "$" * 50 + "\n\n")
-            print("Description: ", end="")
-            print(course["courseDescription"])
-            print("\ncourseCredit: ", end="")
-            print(course["courseCredit"])
-            print("\n\n" + "$" * 50)
-            break
+        if course.get("courseIndex") == courseNum:
+            return course
+    return None
+
+
+def SearchCourse(dbClassUW, courseIndex):
+    course = get_course_detail(dbClassUW, courseIndex)
+    if not course:
+        print("@_@ Course %s Not Found @_@" % (courseIndex))
+        return
+    print("\n" + "$" * 50 + "\n\n")
+    print("Description: ", end="")
+    print(course.get("courseDescription"))
+    print("\ncourseCredit: ", end="")
+    print(course.get("courseCredit"))
+    print("\n\n" + "$" * 50)
     print("\n\n")
 
 
-def SearchAvalibleInTerm(dbClassUW, courseIndex, classNum=None):
+def SearchAvalibleInTerm(dbClassUW, courseIndex, classNum=None, quiet=False):
     ClassSchedule = dbClassUW.ClassSchedule
     courseSelect = ClassSchedule.find({"ClassIndex": courseIndex})
     if courseSelect == None:
-        print(FAIL + "@_@ Course %s Not Found in %s @_@" % (courseIndex, dbClassUW.ClassCollectionName) + ENDC)
+        if not quiet:
+            print("@_@ Course %s Not Found in %s @_@" % (courseIndex, dbClassUW.ClassCollectionName))
         return None
     else:
-        print(OKGREEN + "!! Found Course %s in %s !!" % (courseIndex, dbClassUW.ClassCollectionName) + ENDC)
+        if not quiet:
+            print("!! Found Course %s in %s !!" % (courseIndex, dbClassUW.ClassCollectionName))
         if classNum != None:
             return [courseIndex, classNum]
         return [courseIndex]
@@ -41,7 +52,7 @@ def SearchAvalibleInTerm(dbClassUW, courseIndex, classNum=None):
 def makeSchedule(dbClassUW, courseWishList: list, gray: bool=False):
     classSchedule = dbClassUW.ClassSchedule
     if gray:
-        print(OKGREEN + "!! Make Schedule with Gray Color !!" + ENDC)
+        print("!! Make Schedule with Gray Color !!")
     try:
         remove(setting.outDir)
     except:

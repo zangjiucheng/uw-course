@@ -1,5 +1,4 @@
 import re
-from ..Utiles.colorMessage import *
 
 
 class Course():
@@ -20,7 +19,7 @@ class Course():
             self.courseIndex = course['ClassIndex']
             self.courseTitle = course['classTitle']
             self.courseSeat = course['availableSeat']
-            if re.search("\d:\d*", self.time):
+            if re.search(r"\d:\d*", self.time):
                 self.startTime = self.time[0:5]
                 self.endTime = self.time[6:11]
                 StartTimeFlag = False
@@ -37,7 +36,7 @@ class Course():
                 self.weekDay = "H" if self.time[11:15] == "Th" else self.time[11:15]
                 self.writeSchedule()
             else:
-                print(WARNING + "Z_Z For course %s in class %s, Time Data Error Z_Z" % (self.courseIndex, self.classNum)+ENDC)
+                print("Z_Z For course %s in class %s, Time Data Error Z_Z" % (self.courseIndex, self.classNum))
 
     def writeSchedule(self):
         self.fileOut.write(

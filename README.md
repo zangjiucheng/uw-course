@@ -21,22 +21,21 @@ MongoDB DashBoard: [LINK](https://charts.mongodb.com/charts-project-0-cbzai/publ
 
 ---
 
-### Usage:
+### Usage (TUI)
 
-#### 1. Get Course Information
-1. Run the following command in the terminal
+Run the terminal UI:
 ```bash
-uw-course -c "{CourseName}"
+uw-course
 ```
 
-Example:
-```bash
-uw-course -c "CO 250"
-```
+You can:
+- Check course details
+- Build a schedule from a file
+- Export the `.out` schedule to PDF
 
-#### 2. Get Course Schedule
-1. Create a new file named ```schedule.txt``` in the folder you want to save the schedule
-2. Edit ```schedule.txt``` with the following format:
+#### Schedule File Format
+1. Create a new file named `schedule.txt` in the folder you want to save the schedule
+2. Edit `schedule.txt` with the following format:
 ```txt
 Class{year}{Winter/Summer/Fall}
 
@@ -56,13 +55,8 @@ CO 353, 6157
 STAT 231, 6097
 AMATH 250, 5967
 ```
-3. Run the following command in the folder you saved the ```schedule.txt``` file
-```bash
-uw-course -f schedule.txt
-```
-(If you want to get the schedule with gray printables, you can add the ```-g``` flag)
-
-4. The program will generate a ```schedule.pdf``` file in the same folder, which is the schedule you want to see
+3. Use the TUI to select “Build Schedule” and provide the file path.
+4. The program will generate `schedule.out`, and you can export it to PDF from the TUI.
 
 #### Any Idea or Question, welcome send me an email via: j7zang@uwaterloo.ca
 
@@ -71,4 +65,3 @@ uw-course -f schedule.txt
 ## License
 
 This project is open-source and can be modified and used for personal or educational purposes. Attribution to the original creator is appreciated. (MIT License)
-

@@ -1,16 +1,28 @@
-from random import randint
+from random import choice
+
+_PALETTE = [
+    "#1F77B4",  # blue
+    "#FF7F0E",  # orange
+    "#2CA02C",  # green
+    "#D62728",  # red
+    "#9467BD",  # purple
+    "#8C564B",  # brown
+    "#E377C2",  # pink
+    "#7F7F7F",  # gray
+    "#BCBD22",  # olive
+    "#17BECF",  # cyan
+    "#4E79A7",  # blue
+    "#F28E2B",  # orange
+    "#59A14F",  # green
+    "#E15759",  # red
+    "#76B7B2",  # teal
+    "#EDC948",  # yellow
+]
 
 
 def randomColor():
-    colorArr = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F']
-    color = ""
-    for i in range(6):
-        color += colorArr[randint(0, 14)]
-    return "#" + color
+    return choice(_PALETTE)
 
 
 def randomGray():
-    colorArr = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F']
-    color = colorArr[randint(2, 12)]
-    color += colorArr[randint(0, 14)] 
-    return "#" + color + color + color
+    return "#9E9E9E"
