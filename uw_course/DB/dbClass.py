@@ -23,3 +23,23 @@ class dbClass:
         self.ClassCollectionName = collectionName
         self.ClassDATABASE.selectCollection(self.ClassCollectionName)
         self.ClassSchedule = self.ClassDATABASE.mongo_collection
+
+    def listClassCollections(self):
+        collections = self.ClassDATABASE.listCollections()
+        term_order = {"Winter": 0, "Spring": 1, "Fall": 2}
+
+        def sort_key(name):
+            if not name.startswith("Class"):
+                return (9999, 99, name)
+            tail = name[len("Class") :]
+            year = tail[:4]
+            term = tail[4:]
+            try:
+                year_value = int(year)
+            except ValueError:
+                year_value = 9999
+            term_value = term_order.get(term, 99)
+            return (year_value, term_value, name)
+
+        class_names = [name for name in collections if name.startswith("Class")]
+        return sorted(class_names, key=sort_key, reverse=True)

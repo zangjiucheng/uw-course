@@ -16,5 +16,10 @@ class connectDB:
     def selectCollection(self, collection_name):
         self.mongo_collection = self.mongo_db[collection_name]
 
+    def listCollections(self):
+        if self.mongo_db is None:
+            return []
+        return self.mongo_db.list_collection_names()
+
     def closeDB(self):
         self.client.close()

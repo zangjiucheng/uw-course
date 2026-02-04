@@ -1,8 +1,12 @@
+import re
 import subprocess
 
 from textual import on
+from textual import events
 from textual.app import App, ComposeResult
 from textual.containers import Horizontal, Vertical
+from textual.coordinate import Coordinate
+from textual.screen import ModalScreen
 from textual.widgets import (
     Button,
     Checkbox,
@@ -16,8 +20,7 @@ from textual.widgets import (
 
 from uw_course.ui.components import (
     detail_form_widgets,
-    schedule_setup_widgets,
-    schedule_tabs,
+    schedule_tabs_with_options,
 )
 from uw_course.ui.constants import (
     ACTION_DETAIL,
@@ -35,14 +38,17 @@ from uw_course.DB.dbClass import dbClass
 from uw_course.setting import Setting
 
 
-def _collection_options():
-    options = [("Select term...", "")]
-    for year in (2025, 2026):
-        for term in ("Winter", "Spring", "Fall"):
-            value = f"Class{year}{term}"
-            label = f"{year} {term}"
-            options.append((label, value))
-    return options
+def _label_collection(name):
+    match = re.match(r"^Class(\d{4})([A-Za-z]+)$", name)
+    if match:
+        year, term = match.groups()
+        return f"{year} {term}"
+    return name
+
+
+def _vertical_label(label):
+    cleaned = re.sub(r"\\s+", "", label)
+    return "\\n".join(cleaned) if cleaned else label
 
 
 def _parse_collection_file(path, db):
@@ -72,6 +78,7 @@ class CourseApp(App):
         ("k", "focus_previous", "Previous"),
         ("h", "focus_left", "Left"),
         ("l", "focus_right", "Right"),
+        ("enter", "edit_cell", "Edit Cell"),
         ("q", "app.quit", "Quit"),
     ]
 
@@ -154,21 +161,53 @@ class CourseApp(App):
     #actions Button {
         margin: 0 1 0 0;
         width: 1fr;
-        min-width: 16;
+        min-width: 18;
+        height: 3;
+        padding: 0 2;
         text-style: bold;
+        border: round #3b4261;
+        background: #1f2335;
+        color: #c0caf5;
+    }
+
+    #actions Button:hover {
+        background: #24283b;
+        border: round #7aa2f7;
     }
 
     #actions Button:focus {
         outline: none;
+        border: round #7aa2f7;
+    }
+
+    #action-schedule {
+        background: #7aa2f7;
+        color: #1a1b26;
+        border: round #7aa2f7;
+    }
+
+    #action-schedule:hover {
+        background: #89b4fa;
     }
 
     #action-detail {
-        background: #1a1b26;
+        background: #1f2335;
         color: #c0caf5;
+        border: round #3b4261;
     }
 
     #action-detail:hover {
         background: #24283b;
+    }
+
+    #action-quit {
+        background: #f7768e;
+        color: #1a1b26;
+        border: round #f7768e;
+    }
+
+    #action-quit:hover {
+        background: #ff7a93;
     }
 
     #schedule-buttons {
@@ -177,8 +216,97 @@ class CourseApp(App):
     }
 
     #schedule-buttons Button {
+        width: auto;
+        min-width: 16;
+    }
+
+    #schedule-edit-buttons {
+        height: auto;
+        margin: 1 0;
+    }
+
+    #schedule-edit-buttons Button {
+        width: auto;
+        min-width: 16;
+    }
+
+    .cell-editor-screen {
+        background: #1a1b26;
+    }
+
+    #cell-editor {
+        height: 1fr;
+        padding: 2;
+    }
+
+    #cell-editor-title {
+        color: #7aa2f7;
+        text-style: bold;
+        margin: 0 0 1 0;
+    }
+
+    #cell-editor-input {
+        height: auto;
+        border: round #3b4261;
+        background: #1f2335;
+        color: #c0caf5;
+        padding: 0 1;
+        text-style: bold;
+    }
+
+    #cell-editor-buttons {
+        margin: 1 0 0 0;
+    }
+
+    #cell-editor-buttons Button {
         width: 1fr;
         min-width: 16;
+    }
+
+    #manual-actions {
+        height: auto;
+        margin: 1 0 0 0;
+    }
+
+    #manual-actions Button {
+        width: auto;
+        min-width: 16;
+    }
+
+    #manual-actions Checkbox {
+        margin: 0 1;
+    }
+
+    #manual-options {
+        height: auto;
+        margin: 1 0 0 0;
+    }
+
+    #manual-options Button {
+        width: auto;
+        min-width: 16;
+    }
+
+    #manual-options Checkbox {
+        margin: 0 1 0 0;
+    }
+
+    #load-pane {
+        height: auto;
+    }
+
+    #load-options {
+        height: auto;
+        margin: 1 0 0 0;
+    }
+
+    #load-options Button {
+        width: auto;
+        min-width: 16;
+    }
+
+    #load-options Checkbox {
+        margin: 0 1 0 0;
     }
 
     Button.-primary {
@@ -199,7 +327,7 @@ class CourseApp(App):
 
     DataTable {
         margin: 1 0;
-        height: 8;
+        height: 6;
         border: round #3b4261;
     }
     """
@@ -210,6 +338,11 @@ class CourseApp(App):
         self.setting = Setting()
         self.schedule_entries = []
         self.output_placeholder = SCHEDULE_PLACEHOLDER
+        self._editing_cell = None
+
+    def on_mount(self) -> None:
+        self._set_sidebar(SIDEBAR_TITLE_SCHEDULE, SCHEDULE_PLACEHOLDER)
+        self._mount_schedule_form()
 
     def compose(self) -> ComposeResult:
         yield Header()
@@ -268,9 +401,13 @@ class CourseApp(App):
             self.query_one("#schedule-collection", Select).focus()
             return
         form = self.query_one("#form", Vertical)
-        for widget in schedule_setup_widgets(_collection_options()):
-            form.mount(widget)
-        self._set_status("Add courses manually or load a config file, then generate the schedule.")
+        collections = self.db.listClassCollections()
+        if not collections:
+            self._set_status("No term collections found in the database.")
+        options = [(_label_collection(name), name) for name in collections]
+        form.mount(schedule_tabs_with_options(options))
+        if collections:
+            self._set_status("Add courses manually or load a config file, then generate the schedule.")
         self._update_schedule_preview()
 
     def _update_schedule_preview(self):
@@ -278,10 +415,21 @@ class CourseApp(App):
             return
         table = self.query_one("#schedule-table", DataTable)
         table.clear(columns=True)
-        table.add_columns("Course", "Class ID")
-        for entry in self.schedule_entries:
-            class_id = entry.get("class_id")
-            table.add_row(entry["course"], "" if class_id is None else str(class_id))
+        table.show_row_labels = True
+        if not self.schedule_entries:
+            table.add_columns("No Courses")
+            table.add_row("", label="Course")
+            table.add_row("", label="Class ID")
+            return
+        table.show_header = False
+        table.add_columns(*[entry["course"] for entry in self.schedule_entries])
+        courses = [entry["course"] for entry in self.schedule_entries]
+        class_ids = [
+            "" if entry.get("class_id") is None else str(entry.get("class_id"))
+            for entry in self.schedule_entries
+        ]
+        table.add_row(*courses, label="Course")
+        table.add_row(*class_ids, label="Class ID")
 
     def on_button_pressed(self, event):
         button_id = event.button.id
@@ -322,11 +470,19 @@ class CourseApp(App):
     @on(Button.Pressed, "#schedule-run")
     def on_schedule_run(self) -> None:
         gray = self.query_one("#schedule-gray", Checkbox).value
+        self._build_schedule(gray)
+
+    def _build_schedule(self, gray: bool, collection_override: str | None = None) -> None:
         try:
-            collection = self.query_one("#schedule-collection", Select).value
-            if not collection:
-                self._set_status("Please select a collection.")
-                return
+            if collection_override:
+                collection = collection_override
+                if self.query("#schedule-collection"):
+                    self.query_one("#schedule-collection", Select).value = collection
+            else:
+                collection = self.query_one("#schedule-collection", Select).value
+                if not isinstance(collection, str) or not collection:
+                    self._set_status("Please select a collection.")
+                    return
             self.db.switchCollection(collection)
             course_wish_list = []
             for entry in self.schedule_entries:
@@ -346,14 +502,11 @@ class CourseApp(App):
     @on(Select.Changed, "#schedule-collection")
     def on_schedule_collection_changed(self) -> None:
         collection = self.query_one("#schedule-collection", Select).value
-        form = self.query_one("#form", Vertical)
         if not collection:
             return
-        if self.query("#schedule-tabs"):
-            return
-        hint = self.query_one("#schedule-term-hint", Static)
-        hint.remove()
-        form.mount(schedule_tabs())
+        if self.query("#schedule-term-hint"):
+            hint = self.query_one("#schedule-term-hint", Static)
+            hint.remove()
         self._update_schedule_preview()
 
     @on(Button.Pressed, "#schedule-export")
@@ -399,15 +552,15 @@ class CourseApp(App):
             self._set_status("No entries to remove.")
             return
         table = self.query_one("#schedule-table", DataTable)
-        row_index = table.cursor_row
-        if row_index is None:
-            self._set_status("Select a row to remove.")
+        col_index = table.cursor_column
+        if col_index is None:
+            self._set_status("Select a column to remove.")
             return
-        if row_index >= len(self.schedule_entries):
+        if col_index >= len(self.schedule_entries):
             self._set_status("Selected row is out of range. Refreshing list.")
             self._update_schedule_preview()
             return
-        self.schedule_entries.pop(row_index)
+        self.schedule_entries.pop(col_index)
         self._update_schedule_preview()
         self._set_status("Removed selected entry.")
 
@@ -415,11 +568,21 @@ class CourseApp(App):
     def on_schedule_cell_selected(self, event: DataTable.CellSelected) -> None:
         if not self.schedule_entries:
             return
-        edit = self.query_one("#schedule-edit", Input)
-        edit.value = str(event.value) if event.value is not None else ""
+        self._editing_cell = (event.coordinate.row, event.coordinate.column)
+        self._set_status("Press Enter to edit the selected cell.")
 
-    @on(Input.Submitted, "#schedule-edit")
-    def on_schedule_edit_submitted(self, event: Input.Submitted) -> None:
+    def on_key(self, event: events.Key) -> None:
+        if event.key not in ("enter", "e"):
+            return
+        if not self.query("#schedule-table"):
+            return
+        table = self.query_one("#schedule-table", DataTable)
+        if not table.has_focus:
+            return
+        self.action_edit_cell()
+        event.stop()
+
+    def action_edit_cell(self) -> None:
         if not self.query("#schedule-table"):
             return
         table = self.query_one("#schedule-table", DataTable)
@@ -428,35 +591,74 @@ class CourseApp(App):
         if row_index is None or col_index is None:
             self._set_status("Select a cell to edit.")
             return
-        if row_index >= len(self.schedule_entries):
-            self._set_status("Selected row is out of range. Refreshing list.")
+        if col_index >= len(self.schedule_entries):
+            self._set_status("Selected column is out of range. Refreshing list.")
             self._update_schedule_preview()
             return
-        new_value = event.value.strip()
-        if col_index == 0:
+        self._editing_cell = (row_index, col_index)
+        self._show_cell_editor(row_index, col_index)
+
+    def _show_cell_editor(self, row_index, col_index):
+        if not self.query("#schedule-table"):
+            return
+        table = self.query_one("#schedule-table", DataTable)
+        cell_value = table.get_cell_at(Coordinate(row_index, col_index))
+        self._editing_cell = (row_index, col_index)
+        screen = _CellEditorScreen(
+            f"Edit cell ({row_index}, {col_index})",
+            "" if cell_value is None else str(cell_value),
+        )
+        self._set_status("Editing cell: press Enter to save and refresh.")
+        self.push_screen(screen, self._apply_cell_edit)
+
+    def _apply_cell_edit(self, value: str) -> None:
+        if value is None:
+            self._set_status("Edit canceled.")
+            return
+        if self._editing_cell is None:
+            return
+        row_index, col_index = self._editing_cell
+        if col_index >= len(self.schedule_entries):
+            self._set_status("Selected column is out of range. Refreshing list.")
+            self._update_schedule_preview()
+            return
+        new_value = value.strip()
+        if row_index == 0:
             if not new_value:
                 self._set_status("Course code cannot be empty.")
                 return
-            self.schedule_entries[row_index]["course"] = new_value
+            self.schedule_entries[col_index]["course"] = new_value
         else:
             if new_value:
                 try:
-                    self.schedule_entries[row_index]["class_id"] = int(new_value)
+                    self.schedule_entries[col_index]["class_id"] = int(new_value)
                 except ValueError:
                     self._set_status("Class ID must be a number.")
                     return
             else:
-                self.schedule_entries[row_index]["class_id"] = None
+                self.schedule_entries[col_index]["class_id"] = None
         self._update_schedule_preview()
         self._set_status("Updated entry.")
 
     @on(Button.Pressed, "#schedule-load")
     def on_schedule_load(self) -> None:
-        path = self.query_one("#schedule-load-file", Input).value.strip()
+        if not self.query("#schedule-load-file"):
+            self._set_status("Switch to Load Config tab first.")
+            return
+        path = (
+            self.query_one("#schedule-load-file", Input).value.strip()
+            or f"{self.setting.dataName}/schema.txt"
+        )
         if not path:
             self._set_status("Please enter a config file path to load.")
             return
+        self._set_status(f"Loading config from {path} ...")
+        self.refresh()
+        self.call_later(self._load_config, path)
+
+    def _load_config(self, path: str) -> None:
         try:
+            self._set_status(f"Reading {path} ...")
             collection, course_wish_list = _parse_collection_file(path, self.db)
             self.schedule_entries = []
             self.query_one("#schedule-collection", Select).value = collection
@@ -466,13 +668,19 @@ class CourseApp(App):
                 else:
                     self.schedule_entries.append({"course": entry[0], "class_id": None})
             self._update_schedule_preview()
-            self._set_status("Config loaded.")
+            gray = self.query_one("#schedule-gray", Checkbox).value
+            self._build_schedule(gray, collection_override=collection)
+            self._set_status("Config loaded and schedule generated.")
         except Exception as exc:
+            self._set_status(f"Failed to load config: {exc}")
             self._set_output(f"Failed to load config: {exc}")
 
     @on(Button.Pressed, "#schedule-save")
     def on_schedule_save(self) -> None:
-        path = self.query_one("#schedule-save-file", Input).value.strip() or "schedule.txt"
+        path = (
+            self.query_one("#schedule-save-file", Input).value.strip()
+            or f"{self.setting.dataName}/schema.txt"
+        )
         collection = self.query_one("#schedule-collection", Select).value
         if not collection:
             self._set_status("Please enter a collection name before saving.")
@@ -488,6 +696,34 @@ class CourseApp(App):
             self._set_output(f"Config saved to: {path}")
         except Exception as exc:
             self._set_output(f"Failed to save config: {exc}")
+
+
+class _CellEditorScreen(ModalScreen[str]):
+    def __init__(self, title, value):
+        super().__init__()
+        self._title = title
+        self._value = value
+
+    def on_mount(self) -> None:
+        self.add_class("cell-editor-screen")
+
+    def compose(self) -> ComposeResult:
+        with Vertical(id="cell-editor"):
+            yield Static(self._title, id="cell-editor-title")
+            yield Input(value=self._value, id="cell-editor-input")
+            with Horizontal(id="cell-editor-buttons"):
+                yield Button("Save", id="cell-editor-save", variant="primary")
+                yield Button("Cancel", id="cell-editor-cancel")
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        if event.button.id == "cell-editor-save":
+            value = self.query_one("#cell-editor-input", Input).value
+            self.dismiss(value)
+        elif event.button.id == "cell-editor-cancel":
+            self.dismiss(None)
+
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        self.dismiss(event.value)
 
 
 def run_app():
