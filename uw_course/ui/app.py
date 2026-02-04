@@ -1,4 +1,3 @@
-import re
 import subprocess
 
 from textual import on
@@ -13,16 +12,27 @@ from textual.widgets import (
     Input,
     Select,
     Static,
-    TabbedContent,
-    TabPane,
 )
+
+from uw_course.ui.components import (
+    detail_form_widgets,
+    schedule_setup_widgets,
+    schedule_tabs,
+)
+from uw_course.ui.constants import (
+    ACTION_DETAIL,
+    ACTION_QUIT,
+    ACTION_SCHEDULE,
+    DETAIL_PLACEHOLDER,
+    SCHEDULE_PLACEHOLDER,
+    SIDEBAR_TITLE_DETAIL,
+    SIDEBAR_TITLE_SCHEDULE,
+)
+from uw_course.ui.schedule_view import render_weekly_schedule
 
 from uw_course.ClassSchedule.runner import SearchAvalibleInTerm, get_course_detail, makeSchedule
 from uw_course.DB.dbClass import dbClass
 from uw_course.setting import Setting
-
-SCHEDULE_PLACEHOLDER = "Generate a schedule to see the weekly view."
-DETAIL_PLACEHOLDER = "Enter a course code to see details here."
 
 
 def _collection_options():
@@ -54,90 +64,6 @@ def _parse_collection_file(path, db):
     return collection, [c for c in course_wish_list if c is not None]
 
 
-def _parse_schedule_out(path):
-    items = []
-    current = {}
-    try:
-        with open(path, "r") as handle:
-            for raw_line in handle:
-                line = raw_line.strip()
-                if not line:
-                    if current:
-                        items.append(current)
-                        current = {}
-                    continue
-                if line.startswith("- name:"):
-                    if current:
-                        items.append(current)
-                        current = {}
-                    current["name"] = line[len("- name:") :].strip()
-                elif line.startswith("days:"):
-                    current["days"] = line[len("days:") :].strip()
-                elif line.startswith("time:"):
-                    current["time"] = line[len("time:") :].strip()
-        if current:
-            items.append(current)
-    except FileNotFoundError:
-        return []
-    return items
-
-
-def _split_days(days):
-    cleaned = re.sub(r"[^A-Za-z]", "", days)
-    tokens = re.findall(r"Th|Tu|Sa|Su|[MTWHFSU]", cleaned)
-    mapping = {
-        "M": "Mon",
-        "T": "Tue",
-        "Tu": "Tue",
-        "W": "Wed",
-        "H": "Thu",
-        "Th": "Thu",
-        "F": "Fri",
-        "S": "Sat",
-        "Sa": "Sat",
-        "U": "Sun",
-        "Su": "Sun",
-    }
-    return [mapping[token] for token in tokens if token in mapping]
-
-
-def _time_to_minutes(raw_time):
-    try:
-        hours, minutes = raw_time.split(":")
-        return int(hours) * 60 + int(minutes)
-    except ValueError:
-        return 0
-
-
-def _render_weekly_schedule(path):
-    items = _parse_schedule_out(path)
-    if not items:
-        return "No schedule generated yet."
-
-    weekly = {day: [] for day in ("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")}
-    for item in items:
-        name = item.get("name", "").split("Available Seat")[0].strip()
-        time_range = item.get("time", "")
-        if " - " in time_range:
-            start, end = [part.strip() for part in time_range.split(" - ", 1)]
-        else:
-            start, end = time_range, ""
-        for day in _split_days(item.get("days", "")):
-            weekly[day].append((start, end, name))
-
-    lines = ["Weekly Schedule"]
-    for day in weekly:
-        lines.append(f"{day}:")
-        entries = sorted(weekly[day], key=lambda x: _time_to_minutes(x[0]))
-        if not entries:
-            lines.append("  (no classes)")
-            continue
-        for start, end, name in entries:
-            if end:
-                lines.append(f"  {start}-{end}  {name}")
-            else:
-                lines.append(f"  {start}  {name}")
-    return "\n".join(lines)
 
 
 class CourseApp(App):
@@ -151,7 +77,8 @@ class CourseApp(App):
 
     CSS = """
     Screen {
-        background: $surface;
+        background: #1a1b26;
+        color: #c0caf5;
     }
 
     #app-body { padding: 1 2; }
@@ -176,17 +103,17 @@ class CourseApp(App):
 
     #title {
         margin: 1 0 0 0;
-        color: $accent;
+        color: #7aa2f7;
         text-style: bold;
     }
 
     #subtitle {
         margin: 0 0 1 0;
-        color: $text-muted;
+        color: #9aa5ce;
     }
 
     #sidebar-title {
-        color: $accent;
+        color: #7aa2f7;
         text-style: bold;
         margin: 0 0 1 0;
     }
@@ -195,13 +122,13 @@ class CourseApp(App):
         height: auto;
         margin: 0 0 1 0;
         padding: 1;
-        background: $panel;
-        border: round $secondary;
+        background: #1f2335;
+        border: round #3b4261;
     }
 
     #status {
         height: auto;
-        color: $text-muted;
+        color: #9aa5ce;
         margin: 0 0 1 0;
     }
 
@@ -209,16 +136,16 @@ class CourseApp(App):
         height: 1fr;
         overflow-y: auto;
         padding: 1;
-        background: $boost;
-        border: round $secondary;
+        background: #24283b;
+        border: round #3b4261;
     }
 
     #output {
         height: 1fr;
-        border: round $accent;
+        border: round #7aa2f7;
         padding: 1;
         margin: 1 0 0 0;
-        background: $surface;
+        background: #1a1b26;
     }
 
     #schedule-tabs { height: auto; }
@@ -236,12 +163,12 @@ class CourseApp(App):
     }
 
     #action-detail {
-        background: $surface;
-        color: $text;
+        background: #1a1b26;
+        color: #c0caf5;
     }
 
     #action-detail:hover {
-        background: $boost;
+        background: #24283b;
     }
 
     #schedule-buttons {
@@ -255,14 +182,14 @@ class CourseApp(App):
     }
 
     Button.-primary {
-        background: $accent;
-        color: $text;
+        background: #7aa2f7;
+        color: #1a1b26;
         text-style: bold;
     }
 
     Button.-error {
-        background: $error;
-        color: $text;
+        background: #f7768e;
+        color: #1a1b26;
         text-style: bold;
     }
 
@@ -273,7 +200,7 @@ class CourseApp(App):
     DataTable {
         margin: 1 0;
         height: 8;
-        border: round $secondary;
+        border: round #3b4261;
     }
     """
 
@@ -298,7 +225,7 @@ class CourseApp(App):
                 with Vertical(id="main"):
                     yield Vertical(id="form")
                 with Vertical(id="sidebar"):
-                    yield Static("Weekly Schedule", id="sidebar-title")
+                    yield Static(SIDEBAR_TITLE_SCHEDULE, id="sidebar-title")
                     output = Static(SCHEDULE_PLACEHOLDER, id="output")
                     output.display = True
                     yield output
@@ -318,13 +245,33 @@ class CourseApp(App):
     def _reset_form(self):
         form = self.query_one("#form", Vertical)
         form.remove_children()
-        for widget in self.query("#schedule-collection"):
-            widget.remove()
-        for widget in self.query("#detail-input"):
-            widget.remove()
-        for widget in self.query("#detail-run"):
+        for widget in self.query("#schedule-collection, #schedule-tabs, #schedule-term-hint"):
             widget.remove()
         self._set_output("")
+
+    def _set_sidebar(self, title, placeholder):
+        self.output_placeholder = placeholder
+        self._set_sidebar_title(title)
+        self._set_output("")
+
+    def _mount_detail_form(self):
+        if self.query("#detail-input"):
+            self.query_one("#detail-input", Input).focus()
+            return
+        form = self.query_one("#form", Vertical)
+        for widget in detail_form_widgets():
+            form.mount(widget)
+        self._set_status("Enter a course code to view description.")
+
+    def _mount_schedule_form(self):
+        if self.query("#schedule-collection"):
+            self.query_one("#schedule-collection", Select).focus()
+            return
+        form = self.query_one("#form", Vertical)
+        for widget in schedule_setup_widgets(_collection_options()):
+            form.mount(widget)
+        self._set_status("Add courses manually or load a config file, then generate the schedule.")
+        self._update_schedule_preview()
 
     def _update_schedule_preview(self):
         if not self.query("#schedule-table"):
@@ -340,33 +287,18 @@ class CourseApp(App):
         button_id = event.button.id
         if button_id is None or not button_id.startswith("action-"):
             return
-        if button_id == "action-quit":
+        if button_id == ACTION_QUIT:
             self.exit()
             return
 
         self._reset_form()
-        self._set_output("")
 
-        if button_id == "action-detail":
-            if self.query("#detail-input"):
-                self.query_one("#detail-input", Input).focus()
-                return
-            form = self.query_one("#form", Vertical)
-            self.output_placeholder = DETAIL_PLACEHOLDER
-            self._set_sidebar_title("Course Detail")
-            self._set_output("")
-            form.mount(Input(placeholder="Course code (e.g., CS 136)", id="detail-input"))
-            form.mount(Button("Lookup", id="detail-run", variant="primary"))
-            self._set_status("Enter a course code to view description.")
-        elif button_id == "action-schedule":
-            form = self.query_one("#form", Vertical)
-            self.output_placeholder = SCHEDULE_PLACEHOLDER
-            self._set_sidebar_title("Weekly Schedule")
-            self._set_output("")
-            form.mount(Select(_collection_options(), id="schedule-collection"))
-            form.mount(Static("Select a term to configure schedule options.", id="schedule-term-hint"))
-            self._set_status("Add courses manually or load a config file, then generate the schedule.")
-            self._update_schedule_preview()
+        if button_id == ACTION_DETAIL:
+            self._set_sidebar(SIDEBAR_TITLE_DETAIL, DETAIL_PLACEHOLDER)
+            self._mount_detail_form()
+        elif button_id == ACTION_SCHEDULE:
+            self._set_sidebar(SIDEBAR_TITLE_SCHEDULE, SCHEDULE_PLACEHOLDER)
+            self._mount_schedule_form()
 
     @on(Button.Pressed, "#detail-run")
     def on_detail_run(self) -> None:
@@ -406,7 +338,7 @@ class CourseApp(App):
                     course_wish_list.append(SearchAvalibleInTerm(self.db, course, quiet=True))
             course_wish_list = [c for c in course_wish_list if c is not None]
             makeSchedule(self.db, courseWishList=course_wish_list, gray=gray)
-            self._set_output(_render_weekly_schedule(self.setting.outDir))
+            self._set_output(render_weekly_schedule(self.setting.outDir))
             self._set_status("Schedule generated.")
         except Exception as exc:
             self._set_output(f"Failed to build schedule: {exc}")
@@ -421,52 +353,7 @@ class CourseApp(App):
             return
         hint = self.query_one("#schedule-term-hint", Static)
         hint.remove()
-        tabs = TabbedContent(id="schedule-tabs")
-        form.mount(tabs)
-        tabs.add_pane(
-            TabPane(
-                "Manual",
-                Vertical(
-                    Input(placeholder="Course code (e.g., CS 136)", id="schedule-course"),
-                    Input(placeholder="Class ID (optional)", id="schedule-class-id"),
-                    Horizontal(
-                        Button("Add Course", id="schedule-add", variant="primary"),
-                        Button("Clear List", id="schedule-clear", variant="warning"),
-                        Button("Remove Selected", id="schedule-remove", variant="error"),
-                    ),
-                    DataTable(id="schedule-table"),
-                    Input(placeholder="Edit selected cell and press Enter", id="schedule-edit"),
-                    Checkbox("Gray color mode", id="schedule-gray"),
-                    Horizontal(
-                        Button("Generate Schedule", id="schedule-run", variant="primary"),
-                        Button("Export PDF", id="schedule-export"),
-                    ),
-                    id="manual-pane",
-                ),
-            )
-        )
-        tabs.add_pane(
-            TabPane(
-                "Load Config",
-                Vertical(
-                    Input(placeholder="Load config file path", id="schedule-load-file"),
-                    Horizontal(
-                        Button("Load Config", id="schedule-load", variant="primary"),
-                        Button("Save Config", id="schedule-save", variant="primary"),
-                    ),
-                    Input(
-                        placeholder="Save config to (default: schedule.txt)",
-                        id="schedule-save-file",
-                    ),
-                    Checkbox("Gray color mode", id="schedule-gray"),
-                    Horizontal(
-                        Button("Generate Schedule", id="schedule-run", variant="primary"),
-                        Button("Export PDF", id="schedule-export"),
-                    ),
-                    id="load-pane",
-                ),
-            )
-        )
+        form.mount(schedule_tabs())
         self._update_schedule_preview()
 
     @on(Button.Pressed, "#schedule-export")
