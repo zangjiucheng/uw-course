@@ -7,7 +7,7 @@ name = "uw-course"
 version = "2.0.0"
 description = "A course helper tool for managing UW courses schedule"
 authors = [
-    { name = "Jiucheng Zang", email = "zangjiucheng@gmail.com" }
+    { name = "Jiucheng Zang", email = "git.jiucheng@gmail.com" }
 ]
 license = "MIT"
 readme = "README.md"
@@ -23,14 +23,25 @@ dependencies = [
     "pymongo",
     "textual"
 ]
+classifiers = [
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: Microsoft :: Windows",
+    "Topic :: Education",
+    "Topic :: Office/Business :: Scheduling",
+]
 
 [project.urls]
-homepage = "https://github.com/zangjiucheng/CourseExplorer"
-repository = "https://github.com/zangjiucheng/CourseExplorer"
+Homepage = "https://github.com/zangjiucheng/uw-course"
+Repository = "https://github.com/zangjiucheng/uw-course"
 
 [project.scripts]
 uw-course = "uw_course.main:main"
 
 [tool.pypi]
 repository = "https://pypi.org/project/uw-course"
-github = "zangjiucheng/CourseExplorer"
+github = "zangjiucheng/uw-course"
