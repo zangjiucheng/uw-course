@@ -1,5 +1,4 @@
 import re
-import subprocess
 
 from textual import on
 from textual import events
@@ -32,6 +31,7 @@ from uw_course.ui.constants import (
     SIDEBAR_TITLE_SCHEDULE,
 )
 from uw_course.ui.schedule_view import render_weekly_schedule
+from uw_course.pdfschedule import generate_pdf
 
 from uw_course.ClassSchedule.runner import SearchAvalibleInTerm, get_course_detail, makeSchedule
 from uw_course.DB.dbClass import dbClass
@@ -512,7 +512,7 @@ class CourseApp(App):
     @on(Button.Pressed, "#schedule-export")
     def on_export_run(self) -> None:
         try:
-            subprocess.run(["pdfschedule", self.setting.outDir], check=True)
+            generate_pdf(self.setting.outDir)
             self._set_output("PDF export completed.")
         except Exception as exc:
             self._set_output(f"Export failed: {exc}")
@@ -611,7 +611,7 @@ class CourseApp(App):
         self._set_status("Editing cell: press Enter to save and refresh.")
         self.push_screen(screen, self._apply_cell_edit)
 
-    def _apply_cell_edit(self, value: str) -> None:
+    def _apply_cell_edit(self, value: str | None) -> None:
         if value is None:
             self._set_status("Edit canceled.")
             return

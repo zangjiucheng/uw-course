@@ -4,24 +4,23 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "uw-course"
-version = "1.0.2"
+version = "2.0.0"
 description = "A course helper tool for managing UW courses schedule"
 authors = [
     { name = "Jiucheng Zang", email = "zangjiucheng@gmail.com" }
 ]
-license = { text = "MIT" }
+license = "MIT"
 readme = "README.md"
-requires-python = ">=3.7"
+requires-python = ">=3.10"
 dependencies = [
     "attrs",
-    "certifi",
     "click",
-    "dnspython",
-    "pdfschedule",
-    "Pillow",
-    "pymongo",
     "PyYAML",
     "reportlab",
+    "certifi",
+    "dnspython",
+    "Pillow",
+    "pymongo",
     "textual"
 ]
 
