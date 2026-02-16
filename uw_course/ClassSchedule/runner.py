@@ -8,9 +8,9 @@ setting = Setting()
 
 
 def get_course_detail(dbClassUW, courseIndex):
-    CourseDescribe = dbClassUW.CourseDescribe
-    if not courseIndex or " " not in courseIndex:
+    if not courseIndex or not str(courseIndex).strip() or " " not in str(courseIndex).strip():
         return None
+    CourseDescribe = dbClassUW.CourseDescribe
     faculty = courseIndex.split(" ")[0]
     courseNum = courseIndex.split(" ")[1]
     FacultyList = CourseDescribe.find({"faculty": faculty})

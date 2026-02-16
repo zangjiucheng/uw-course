@@ -1,13 +1,11 @@
 from ..Utiles.manageDBClass import connectDB
+from ..config import get_mongodb_uri
 
 
 class dbClass:
     def __init__(self):
         self.ClassCollectionName = "Class2024Winter"
-
-
-
-        self.url = "mongodb+srv://user:hCk2I9rMak6dMKpf@uwdatabase.kcmy6ok.mongodb.net/?retryWrites=true&w=majority"
+        self.url = get_mongodb_uri()
 
         self.ClassDATABASE = connectDB(mongo_host=self.url)
         self.ClassDATABASE.connectDataBase('UWRegistrationDB')

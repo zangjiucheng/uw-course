@@ -21,7 +21,8 @@ dependencies = [
     "dnspython",
     "Pillow",
     "pymongo",
-    "textual"
+    "textual",
+    "python-dotenv>=1.0.0",
 ]
 classifiers = [
     "Programming Language :: Python :: 3.10",
@@ -35,12 +36,21 @@ classifiers = [
     "Topic :: Office/Business :: Scheduling",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+]
+
 [project.urls]
 Homepage = "https://github.com/zangjiucheng/uw-course"
 Repository = "https://github.com/zangjiucheng/uw-course"
 
 [project.scripts]
 uw-course = "uw_course.main:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
 
 [tool.pypi]
 repository = "https://pypi.org/project/uw-course"
