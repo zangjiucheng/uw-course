@@ -1,5 +1,5 @@
 from uw_course.ClassSchedule.SearchInfo import Course
-from uw_course.Utiles.randomColor import randomColor, randomGray
+from uw_course.Utils.randomColor import randomColor, randomGray
 from uw_course.setting import Setting
 
 from os import remove

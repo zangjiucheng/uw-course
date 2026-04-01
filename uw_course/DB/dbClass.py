@@ -1,13 +1,19 @@
-from ..Utiles.manageDBClass import connectDB
+import os
+
+from ..Utils.manageDBClass import connectDB
+
+# Default public read-only MongoDB URI; override with MONGODB_URI env var.
+DEFAULT_MONGODB_URI = (
+    "mongodb+srv://user:hCk2I9rMak6dMKpf@uwdatabase.kcmy6ok.mongodb.net/"
+    "?retryWrites=true&w=majority"
+)
 
 
 class dbClass:
     def __init__(self):
         self.ClassCollectionName = "Class2024Winter"
 
-
-
-        self.url = "mongodb+srv://user:hCk2I9rMak6dMKpf@uwdatabase.kcmy6ok.mongodb.net/?retryWrites=true&w=majority"
+        self.url = os.environ.get("MONGODB_URI", DEFAULT_MONGODB_URI)
 
         self.ClassDATABASE = connectDB(mongo_host=self.url)
         self.ClassDATABASE.connectDataBase('UWRegistrationDB')
