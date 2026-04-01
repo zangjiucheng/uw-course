@@ -26,7 +26,11 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen.canvas import Canvas
 import yaml
 
-EM = 0.6  ### TODO: Eliminate
+# EM (Em Width) is used to calculate the line width for event text wrapping.
+# It represents the width of the letter 'M' in the current font size relative to points.
+# This factor ensures text fits within event boxes regardless of font size.
+# Value 0.6 is based on typical proportion of character width to font size.
+EM = 0.6
 
 WEEKDAYS_EN = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"]
 FULL_WEEK_EN = ["Sunday"] + WEEKDAYS_EN + ["Saturday"]
