@@ -1,7 +1,6 @@
 from os import makedirs
 from os.path import join
 from pathlib import Path
-from pathlib import home
 
 
 class Setting:
@@ -9,7 +8,7 @@ class Setting:
         if data_dir is not None:
             self.data_name = Path(data_dir).expanduser().resolve()
         else:
-            self.data_name = home() / ".uw-course" / "uw-course-files"
+            self.data_name = Path.home() / ".uw-course" / "uw-course-files"
 
         self.config_file_name = "schedule.out"
 
