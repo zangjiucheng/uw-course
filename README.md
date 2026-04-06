@@ -2,6 +2,8 @@
 
 `uw-course` is a browser-based University of Waterloo course planner built on top of the live MongoDB course database.
 
+![Web app screenshot](docs-web-screenshot.png)
+
 The project no longer uses the old TUI or PDF export flow. The current app is a Flask web interface with:
 
 - term-aware course search
@@ -83,4 +85,4 @@ The web app exposes JSON endpoints:
 
 ## License
 
-MIT.
+See [LICENSE](LICENSE).
