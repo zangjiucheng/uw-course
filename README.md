@@ -1,80 +1,86 @@
 # uw-course
 
-[![PyPI version](https://badge.fury.io/py/uw-course.svg)](https://badge.fury.io/py/uw-course)
+`uw-course` is a browser-based University of Waterloo course planner built on top of the live MongoDB course database.
 
+The project no longer uses the old TUI or PDF export flow. The current app is a Flask web interface with:
 
-This is a project for UWaterloo students to help them get course information and generate a schedule for the next term.
+- term-aware course search
+- section browsing with course descriptions and prerequisites
+- weekly timetable view
+- plan import/export
+- auto-resolution for course-only plans such as `CS 341`
 
-MongoDB DashBoard: [LINK](https://charts.mongodb.com/charts-project-0-cbzai/public/dashboards/091bc68f-76df-48c0-aa69-b21af14c0a8a)
+## Install
 
-### Example Schedule: 
+```bash
+pip install uw-course
+```
 
-![Image text](demo.png)
+For local development in this repository:
 
----
+```bash
+pip install -e .
+```
 
-### Install Steps: 
-1. Install Python3 (>= 3.10) [Python Website](https://www.python.org/downloads/)
-2. ```bash
-   pip install uw-course
-   ```
+## Run
 
----
+Start the web app with either entrypoint:
 
-### Usage (TUI)
-
-Run the terminal UI:
 ```bash
 uw-course
 ```
 
-You can:
-- Check course details
-- Build a schedule manually or load a plan file
-- View the weekly schedule in the TUI
-- Export the `.out` schedule to PDF
+or
 
-#### Schedule Plan File Format
-1. Create a new file named `schema.txt`
-2. Edit `schema.txt` with the following format:
-```txt
-Class{year}{Winter/Spring/Fall}
-
-{Course}{CourseName}, {ClassID}
-{Course}{CourseName}, {ClassID}
-...
+```bash
+python -m uw_course
 ```
 
-Example:
+By default the server runs at [http://127.0.0.1:8000](http://127.0.0.1:8000).
+
+Optional environment variables:
+
+- `UW_COURSE_HOST`
+- `UW_COURSE_PORT`
+- `UW_COURSE_DEBUG`
+- `MONGODB_URI`
+
+## Plan Format
+
+The planner accepts plain text in this format:
+
 ```txt
-Class2025Winter
+Class2026Winter
 
-PHYS 234, 7166
-CS 431, 8788
-PMATH 351, 6382
-CO 353, 6157
-STAT 231, 6097
-AMATH 250, 5967
+CS 341
+MATH 239
+STAT 230, 1234
 ```
-3. Use the TUI to select “Load Plan” and provide the file path (default: `uw-course-files/schema.txt`).
-4. The program will generate `uw-course-files/schedule.out`, and you can export it to PDF from the TUI.
 
-#### Output Location
-All generated files are stored in `uw-course-files/`:
-- `uw-course-files/schedule.out`
-- `uw-course-files/schedule.pdf`
-- `uw-course-files/schema.txt` (if saved from the TUI)
+Rules:
 
-#### Any Idea or Question, welcome send me an email via: j7zang@uwaterloo.ca
+- the first line is the term collection name
+- `COURSE CODE` means "auto-resolve a section for this course"
+- `COURSE CODE, CLASS_ID` means "lock this exact section"
 
----
+## Web API
 
-## Credits
+The web app exposes JSON endpoints:
 
-PDF export uses a modified version of `pdfschedule` by John Thorvald Wodder II. Thanks for the original project.
+- `GET /api/terms`
+- `GET /api/courses?term=Class2026Spring&q=CS%20341`
+- `GET /api/courses/<course_code>?term=Class2026Spring`
+- `POST /api/schedule`
+- `POST /api/plan/parse`
+- `POST /api/plan/export`
+- `POST /api/plan/resolve`
 
----
+## Notes
+
+- MongoDB data is read directly from the configured collections.
+- `Class2026Winter` and similar term names must match the real collection names exactly.
+- If a course cannot be auto-resolved, the backend returns the unresolved reason.
 
 ## License
 
-This project is open-source and can be modified and used for personal or educational purposes. Attribution to the original creator is appreciated. (MIT License)
+MIT.

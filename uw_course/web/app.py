@@ -1,0 +1,101 @@
+from __future__ import annotations
+
+from flask import Flask, jsonify, render_template, request
+
+from uw_course.web.services import CourseService, ScheduleSelection, normalize_course_code
+
+
+def create_app() -> Flask:
+    app = Flask(__name__, template_folder="templates", static_folder="static")
+    service = CourseService()
+
+    @app.get("/")
+    def index():
+        return render_template("index.html")
+
+    @app.get("/api/terms")
+    def list_terms():
+        return jsonify({"terms": service.list_terms()})
+
+    @app.get("/api/courses")
+    def search_courses():
+        term = request.args.get("term", "").strip()
+        query = request.args.get("q", "").strip()
+        if not term:
+            return jsonify({"error": "Missing term"}), 400
+        return jsonify({"results": service.search_courses(term, query)})
+
+    @app.get("/api/courses/<path:course_code>")
+    def get_course(course_code: str):
+        term = request.args.get("term", "").strip()
+        if not term:
+            return jsonify({"error": "Missing term"}), 400
+        return jsonify(service.get_course(term, normalize_course_code(course_code)))
+
+    @app.post("/api/schedule")
+    def build_schedule():
+        payload = request.get_json(silent=True) or {}
+        term = (payload.get("term") or "").strip()
+        if not term:
+            return jsonify({"error": "Missing term"}), 400
+
+        selections = [
+            ScheduleSelection(
+                course_code=normalize_course_code(item.get("course_code", "")),
+                class_id=item.get("class_id"),
+            )
+            for item in payload.get("selections", [])
+            if item.get("course_code")
+        ]
+        return jsonify(service.build_schedule(term, selections))
+
+    @app.post("/api/plan/parse")
+    def parse_plan():
+        payload = request.get_json(silent=True) or {}
+        plan_text = payload.get("plan_text", "")
+        try:
+            parsed = service.parse_plan_text(plan_text)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+        return jsonify(parsed)
+
+    @app.post("/api/plan/export")
+    def export_plan():
+        payload = request.get_json(silent=True) or {}
+        term = (payload.get("term") or "").strip()
+        if not term:
+            return jsonify({"error": "Missing term"}), 400
+        selections = [
+            ScheduleSelection(
+                course_code=normalize_course_code(item.get("course_code", "")),
+                class_id=item.get("class_id"),
+            )
+            for item in payload.get("selections", [])
+            if item.get("course_code")
+        ]
+        return jsonify({"plan_text": service.export_plan_text(term, selections)})
+
+    @app.post("/api/plan/resolve")
+    def resolve_plan():
+        payload = request.get_json(silent=True) or {}
+        plan_text = payload.get("plan_text", "")
+        try:
+            parsed = service.parse_plan_text(plan_text)
+        except ValueError as exc:
+            return jsonify({"error": str(exc)}), 400
+
+        selections = [
+            ScheduleSelection(
+                course_code=normalize_course_code(item.get("course_code", "")),
+                class_id=item.get("class_id"),
+            )
+            for item in parsed.get("selections", [])
+            if item.get("course_code")
+        ]
+        return jsonify(service.resolve_plan(parsed["term"], selections))
+
+    return app
+
+
+def run_app(host: str = "127.0.0.1", port: int = 8000, debug: bool = False) -> None:
+    create_app().run(host=host, port=port, debug=debug)

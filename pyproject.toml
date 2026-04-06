@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "uw-course"
-version = "2.0.0"
-description = "A course helper tool for managing UW courses schedule"
+version = "3.0.0"
+description = "A browser-based University of Waterloo course planner backed by live MongoDB data"
 authors = [
     { name = "Jiucheng Zang", email = "git.jiucheng@gmail.com" }
 ]
@@ -13,16 +13,12 @@ license = "MIT"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
-    "attrs",
-    "click",
-    "PyYAML",
-    "reportlab",
     "certifi",
     "dnspython",
-    "Pillow",
-    "pymongo",
-    "textual"
+    "flask",
+    "pymongo"
 ]
+keywords = ["uwaterloo", "courses", "schedule", "planner", "flask", "mongodb"]
 classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -41,6 +37,12 @@ Repository = "https://github.com/zangjiucheng/uw-course"
 
 [project.scripts]
 uw-course = "uw_course.main:main"
+
+[tool.setuptools.packages.find]
+include = ["uw_course*"]
+
+[tool.setuptools.package-data]
+"uw_course.web" = ["templates/*.html", "static/*.css", "static/*.js", "static/*.png"]
 
 [tool.pypi]
 repository = "https://pypi.org/project/uw-course"

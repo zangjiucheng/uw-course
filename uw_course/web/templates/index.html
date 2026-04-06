@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>UW Course Helper</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='uw-course-planner-icon.png') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  </head>
+  <body>
+    <div class="page-shell">
+      <header class="hero">
+        <div class="hero-brand">
+          <img
+            class="hero-brand-icon"
+            src="{{ url_for('static', filename='uw-course-planner-icon.png') }}"
+            alt="UW Course Planner goose icon"
+          >
+          <div>
+          <p class="eyebrow">UWaterloo Course Planner</p>
+          <h1>Build your Waterloo schedule</h1>
+          </div>
+        </div>
+        <div class="hero-panel">
+          <label class="field">
+            <span>Term</span>
+            <select id="term-select"></select>
+          </label>
+          <label class="field">
+            <span>Search Course</span>
+            <div class="search-row">
+              <input id="search-input" type="text" placeholder="e.g. CS 341">
+              <button id="search-button">Search</button>
+            </div>
+          </label>
+        </div>
+      </header>
+
+      <main class="dashboard">
+        <aside class="dashboard-sidebar">
+          <section class="panel panel-tools">
+            <div class="panel-header">
+              <h2>Plan Tools</h2>
+            </div>
+            <div class="plan-tools-card plan-tools-card-editor">
+              <label class="field plan-tools-field">
+                <span>Schedule Plan</span>
+                <textarea id="plan-input" rows="6" placeholder="Class2026Spring&#10;&#10;CS 341&#10;MATH 239&#10;STAT 230, 1234"></textarea>
+              </label>
+              <div class="plan-tools-actions">
+                <button id="import-plan-button">Import Plan</button>
+                <button id="auto-resolve-button" class="secondary">Auto Resolve Courses</button>
+                <button id="export-plan-button" class="secondary">Export Current Plan</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="panel panel-results">
+            <div class="panel-header">
+              <h2>Course Search</h2>
+            </div>
+            <div id="results" class="panel-scroll results empty-state">Choose a term and search for a course.</div>
+          </section>
+        </aside>
+
+        <section class="panel panel-schedule">
+          <section class="panel-inline panel-plan-inline">
+            <div class="panel-header">
+              <h2>Selected Sections</h2>
+            </div>
+            <div id="selection-list" class="panel-scroll selection-list empty-state">No sections selected yet.</div>
+          </section>
+          <div class="panel-header">
+            <h2>Weekly View</h2>
+          </div>
+          <div class="schedule-topbar">
+            <div id="schedule-stats" class="schedule-stats"></div>
+            <div class="schedule-tabs">
+              <button id="tab-timetable" class="schedule-tab active" type="button">Timetable</button>
+              <button id="tab-explorer" class="schedule-tab" type="button">Section Explorer</button>
+            </div>
+          </div>
+          <div id="active-section-panel" class="active-section-panel hidden"></div>
+          <div id="conflict-bar" class="conflict-bar hidden"></div>
+          <div class="schedule-body">
+            <div id="timetable-view" class="schedule-view"></div>
+            <div id="timetable-hover-card" class="timetable-hover-card hidden"></div>
+            <div id="explorer-view" class="schedule-view hidden"></div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <div class="goose-cluster">
+      <a
+        class="goose-credit"
+        href="https://uwaterloo.ca/support/2024-uwaterloo-fsr-drawing-contest"
+        target="_blank"
+        rel="noreferrer"
+      >
+        Goose artwork credit
+      </a>
+      <button id="goose-button" class="goose-button" type="button" aria-label="Release the goose">
+        <img
+          src="https://uwaterloo.ca/support/sites/default/files/styles/uw_is_media_x_large/public/uploads/images/finalist-3.png?itok=D1PdGsZQ"
+          alt="Canada goose easter egg"
+        >
+      </button>
+    </div>
+    <div id="goose-stage" class="goose-stage" aria-hidden="true"></div>
+
+    <template id="result-card-template">
+      <article class="course-card">
+        <div class="course-heading">
+          <div>
+            <h3 class="course-code"></h3>
+            <p class="course-meta"></p>
+          </div>
+        </div>
+        <p class="course-description is-collapsed"></p>
+        <button class="course-description-toggle secondary" type="button">Show more</button>
+        <p class="course-requirements"></p>
+        <div class="section-list"></div>
+      </article>
+    </template>
+
+    <template id="selection-item-template">
+      <article class="selection-item">
+        <div>
+          <h3 class="selection-title"></h3>
+          <p class="selection-meta"></p>
+        </div>
+        <button class="danger remove-selection-button">Remove</button>
+      </article>
+    </template>
+
+    <template id="explorer-card-template">
+      <article class="explorer-card">
+        <div class="explorer-card-header">
+          <div>
+            <h3 class="explorer-card-title"></h3>
+            <p class="explorer-card-meta"></p>
+          </div>
+          <span class="explorer-card-badge"></span>
+        </div>
+        <p class="explorer-card-time"></p>
+        <div class="explorer-card-conflict hidden"></div>
+        <div class="explorer-card-actions"></div>
+      </article>
+    </template>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+  </body>
+</html>
