@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "openproject": {
+      "type": "stdio",
+      "command": "python",
+      "args": [
+        "/app/backend/mcp_server.py"
+      ]
+    }
+  }
+}

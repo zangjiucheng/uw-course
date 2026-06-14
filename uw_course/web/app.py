@@ -97,5 +97,5 @@ def create_app() -> Flask:
     return app
 
 
-def run_app(host: str = "127.0.0.1", port: int = 8000, debug: bool = False) -> None:
+def run_app(host: str = "127.0.0.1", port: int = 8120, debug: bool = False) -> None:
     create_app().run(host=host, port=port, debug=debug)
