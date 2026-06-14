@@ -38,7 +38,7 @@ or
 python -m uw_course
 ```
 
-By default the server runs at [http://127.0.0.1:8000](http://127.0.0.1:8000).
+By default the server runs at [http://127.0.0.1:8120](http://127.0.0.1:8120).
 
 Optional environment variables:
 
