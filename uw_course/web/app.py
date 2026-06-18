@@ -1,17 +1,23 @@
 from __future__ import annotations
 
-from flask import Flask, jsonify, render_template, request
+import os
+
+from flask import Flask, jsonify, request, send_from_directory
 
 from uw_course.web.services import CourseService, ScheduleSelection, normalize_course_code
 
+_STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+
 
 def create_app() -> Flask:
-    app = Flask(__name__, template_folder="templates", static_folder="static")
+    # static_url_path="" serves files from the static folder at the root URL
+    # so Vite's /assets/... paths resolve correctly
+    app = Flask(__name__, static_folder=_STATIC_DIR, static_url_path="")
     service = CourseService()
 
     @app.get("/")
     def index():
-        return render_template("index.html")
+        return send_from_directory(_STATIC_DIR, "index.html")
 
     @app.get("/api/terms")
     def list_terms():

@@ -166,3 +166,7 @@ schedule.txt
 schedule.out
 schedule.pdf
 uw-course-files
+
+# Frontend
+frontend/node_modules/
+frontend/dist/

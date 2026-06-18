@@ -1,0 +1,10 @@
+services:
+  app:
+    build: .
+    ports:
+      - "31415:31415"
+    environment:
+      - UW_COURSE_HOST=0.0.0.0
+      - UW_COURSE_PORT=31415
+      - MONGODB_URI=${MONGODB_URI:-}
+    restart: unless-stopped
