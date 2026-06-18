@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+    "openproject": {
+      "command": "python",
+      "args": [
+        "/app/backend/mcp_server.py"
+      ]
+    }
+  }
+}
