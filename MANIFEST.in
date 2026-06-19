@@ -1,0 +1,9 @@
+include README.md
+include LICENSE
+include schema.txt
+
+# Built Vite frontend served by Flask (populated by scripts/build_frontend.sh
+# or the publish CI before `python -m build`).
+graft uw_course/web/static
+
+global-exclude __pycache__ *.py[cod] .DS_Store

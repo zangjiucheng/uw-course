@@ -1,13 +1,14 @@
-import { useState, useCallback, useEffect } from 'react';
-import Hero from './components/Hero';
-import PlanTools from './components/PlanTools';
-import CourseSearch from './components/CourseSearch';
-import SchedulePanel from './components/SchedulePanel';
-import GooseEasterEgg from './components/GooseEasterEgg';
+import { useState, useCallback, useEffect, useRef } from 'react';
+import AppHeader from './components/AppHeader';
+import SearchPanel from './components/SearchPanel';
+import ScheduleCenter from './components/ScheduleCenter';
+import PlanPanel from './components/PlanPanel';
+import PlanModal, { type PlanModalMode } from './components/PlanModal';
+import GooseEasterEgg, { type GooseHandle } from './components/GooseEasterEgg';
 import Toast from './components/Toast';
 import { api } from './api';
 import type { Section, CourseResult, SchedulePayload, Toast as ToastType } from './types';
-import { sectionKey } from './utils/schedule';
+import { sectionKey, computeConflictEntries, computeConflictMap } from './utils/schedule';
 
 let nextToastId = 0;
 
@@ -23,6 +24,10 @@ export default function App() {
   const [hoveredSectionKey, setHoveredSectionKey] = useState<string | null>(null);
   const [activeSectionKey, setActiveSectionKey] = useState<string | null>(null);
   const [toasts, setToasts] = useState<ToastType[]>([]);
+  const [modalMode, setModalMode] = useState<PlanModalMode | null>(null);
+  const [modalText, setModalText] = useState('');
+
+  const gooseRef = useRef<GooseHandle>(null);
 
   const showToast = useCallback((message: string) => {
     const id = ++nextToastId;
@@ -51,7 +56,7 @@ export default function App() {
         return refreshSchedule(first, []);
       })
       .catch((err: Error) => showToast(err.message));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const handleTermChange = useCallback(
@@ -151,37 +156,33 @@ export default function App() {
 
   const handleImportPlan = useCallback(
     async (planText: string) => {
-      try {
-        const parsed = await api.parsePlan(planText);
-        const newTerm = parsed.term;
-        setTerm(newTerm);
-        setSearchResults([]);
+      const parsed = await api.parsePlan(planText);
+      const newTerm = parsed.term;
+      setTerm(newTerm);
+      setSearchResults([]);
 
-        const newSelections: Section[] = [];
-        let skipped = 0;
-        for (const sel of parsed.selections) {
-          if (sel.class_id == null) {
-            skipped++;
-            continue;
-          }
-          const coursePayload = await api.getCourse(newTerm, sel.course_code);
-          const matching = coursePayload.sections.find((s) => s.class_id === sel.class_id);
-          if (matching) newSelections.push(matching);
+      const newSelections: Section[] = [];
+      let skipped = 0;
+      for (const sel of parsed.selections) {
+        if (sel.class_id == null) {
+          skipped++;
+          continue;
         }
+        const coursePayload = await api.getCourse(newTerm, sel.course_code);
+        const matching = coursePayload.sections.find((s) => s.class_id === sel.class_id);
+        if (matching) newSelections.push(matching);
+      }
 
-        setSelections(newSelections);
-        setActiveSectionKey(newSelections[0] ? sectionKey(newSelections[0]) : null);
-        await refreshSchedule(newTerm, newSelections);
+      setSelections(newSelections);
+      setActiveSectionKey(newSelections[0] ? sectionKey(newSelections[0]) : null);
+      await refreshSchedule(newTerm, newSelections);
 
-        if (skipped > 0) {
-          showToast(
-            `Imported locked sections. ${skipped} course-only line(s) were skipped; use Auto Resolve Courses for those.`
-          );
-        } else {
-          showToast('Plan imported.');
-        }
-      } catch (err: unknown) {
-        showToast((err as Error).message);
+      if (skipped > 0) {
+        showToast(
+          `Imported locked sections. ${skipped} course-only line(s) skipped; use Auto-resolve for those.`
+        );
+      } else {
+        showToast('Plan imported.');
       }
     },
     [refreshSchedule, showToast]
@@ -189,108 +190,162 @@ export default function App() {
 
   const handleAutoResolve = useCallback(
     async (planText: string) => {
-      try {
-        const payload = await api.resolvePlan(planText);
-        const resolved = payload.resolved_items || [];
-        setTerm(payload.term);
-        setSelections(resolved);
-        setActiveSectionKey(resolved[0] ? sectionKey(resolved[0]) : null);
-        setSearchResults([]);
-        setSchedulePayload(payload);
+      const payload = await api.resolvePlan(planText);
+      const resolved = payload.resolved_items || [];
+      setTerm(payload.term);
+      setSelections(resolved);
+      setActiveSectionKey(resolved[0] ? sectionKey(resolved[0]) : null);
+      setSearchResults([]);
+      setSchedulePayload(payload);
 
-        const unresolvedCount = (payload.unresolved_courses || []).length;
-        const autoCount = (payload.auto_resolved_courses || []).length;
-        if (unresolvedCount > 0) {
-          const summary = (payload.unresolved_courses || [])
-            .slice(0, 2)
-            .map((item) => item.course_code)
-            .join(', ');
-          showToast(
-            `Auto-resolved ${autoCount} course(s). ${unresolvedCount} could not be resolved${
-              summary ? `: ${summary}` : ''
-            }.`
-          );
-        } else {
-          showToast(`Auto-resolved ${autoCount} course(s).`);
-        }
-      } catch (err: unknown) {
-        showToast((err as Error).message);
+      const unresolvedCount = (payload.unresolved_courses || []).length;
+      const autoCount = (payload.auto_resolved_courses || []).length;
+      if (unresolvedCount > 0) {
+        const summary = (payload.unresolved_courses || [])
+          .slice(0, 2)
+          .map((item) => item.course_code)
+          .join(', ');
+        showToast(
+          `Auto-resolved ${autoCount} course(s). ${unresolvedCount} could not be resolved${
+            summary ? `: ${summary}` : ''
+          }.`
+        );
+      } else {
+        showToast(`Auto-resolved ${autoCount} course(s).`);
       }
     },
     [showToast]
   );
 
-  const handleExportPlan = useCallback(async () => {
+  const openModal = useCallback((mode: PlanModalMode) => {
+    setModalText('');
+    setModalMode(mode);
+  }, []);
+
+  const openExport = useCallback(async () => {
     try {
       const { plan_text } = await api.exportPlan(
         term,
         selections.map((s) => ({ course_code: s.course_code, class_id: s.class_id }))
       );
-      await navigator.clipboard.writeText(plan_text);
-      showToast('Plan text copied to the clipboard.');
+      setModalText(plan_text);
+      setModalMode('export');
     } catch (err: unknown) {
       showToast((err as Error).message);
     }
   }, [term, selections, showToast]);
+
+  const handleModalSubmit = useCallback(async () => {
+    if (modalMode === 'export') {
+      try {
+        await navigator.clipboard.writeText(modalText);
+        showToast('Plan text copied to the clipboard.');
+        setModalMode(null);
+      } catch (err: unknown) {
+        showToast((err as Error).message);
+      }
+      return;
+    }
+
+    if (!modalText.trim()) {
+      showToast('Enter some plan text first.');
+      return;
+    }
+
+    try {
+      if (modalMode === 'import') await handleImportPlan(modalText);
+      else if (modalMode === 'resolve') await handleAutoResolve(modalText);
+      setModalMode(null);
+    } catch (err: unknown) {
+      showToast((err as Error).message);
+    }
+  }, [modalMode, modalText, handleImportPlan, handleAutoResolve, showToast]);
 
   const allSections = [
     ...(schedulePayload.items || []),
     ...searchResults.flatMap((c) => c.sections),
     ...selections,
   ];
-  const activeSection = activeSectionKey
-    ? (allSections.find((s) => sectionKey(s) === activeSectionKey) ?? null)
-    : null;
   const hoveredSection = hoveredSectionKey
     ? (allSections.find((s) => sectionKey(s) === hoveredSectionKey) ?? null)
     : null;
 
+  const conflicts = computeConflictEntries(schedulePayload.items || []);
+  const conflictMap = computeConflictMap(schedulePayload.items || []);
+
   return (
-    <div className="page-shell">
-      <Hero
+    <div className="app-shell">
+      <AppHeader
         terms={terms}
         term={term}
         onTermChange={handleTermChange}
-        onSearch={handleSearch}
+        view={scheduleView}
+        onSetView={setScheduleView}
+        selectedCount={selections.length}
+        conflictCount={conflicts.length}
+        onAutoResolve={() => openModal('resolve')}
+        onPlanText={() => openModal('import')}
+        onGoose={() => gooseRef.current?.release()}
       />
-      <main className="dashboard">
-        <aside className="dashboard-sidebar">
-          <PlanTools
-            onImport={handleImportPlan}
-            onAutoResolve={handleAutoResolve}
-            onExport={handleExportPlan}
-          />
-          <CourseSearch
-            results={searchResults}
-            selections={selections}
-            hoveredSectionKey={hoveredSectionKey}
-            activeSectionKey={activeSectionKey}
-            onAddSection={addSelection}
-            onRemoveSection={removeSelection}
-            onHover={setHoveredSectionKey}
-            onSetActive={handleSetActive}
-          />
-        </aside>
-        <SchedulePanel
+
+      <div className="app-body">
+        <SearchPanel
+          term={term}
+          results={searchResults}
+          selections={selections}
+          onSearch={handleSearch}
+          onAddSection={addSelection}
+          onRemoveSection={removeSelection}
+          onHover={setHoveredSectionKey}
+          onSetActive={handleSetActive}
+        />
+
+        <ScheduleCenter
           payload={schedulePayload}
           selections={selections}
           searchResults={searchResults}
           scheduleView={scheduleView}
           hoveredSectionKey={hoveredSectionKey}
           activeSectionKey={activeSectionKey}
-          activeSection={activeSection}
           hoveredSection={hoveredSection}
-          onSetView={setScheduleView}
+          conflictMap={conflictMap}
           onAddSection={addSelection}
           onRemoveSection={removeSelection}
           onHover={setHoveredSectionKey}
           onSetActive={handleSetActive}
         />
-      </main>
-      <GooseEasterEgg onToast={showToast} />
-      {toasts.map((toast) => (
-        <Toast key={toast.id} message={toast.message} />
-      ))}
+
+        <PlanPanel
+          selections={selections}
+          conflicts={conflicts}
+          hoveredSectionKey={hoveredSectionKey}
+          activeSectionKey={activeSectionKey}
+          onRemove={removeSelection}
+          onHover={setHoveredSectionKey}
+          onSetActive={handleSetActive}
+          onExport={openExport}
+        />
+      </div>
+
+      {modalMode && (
+        <PlanModal
+          mode={modalMode}
+          text={modalText}
+          onTextChange={setModalText}
+          onSubmit={handleModalSubmit}
+          onClose={() => setModalMode(null)}
+        />
+      )}
+
+      <GooseEasterEgg ref={gooseRef} onToast={showToast} />
+
+      {toasts.length > 0 && (
+        <div className="toast-stack">
+          {toasts.map((toast) => (
+            <Toast key={toast.id} message={toast.message} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

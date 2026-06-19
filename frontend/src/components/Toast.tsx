@@ -3,5 +3,10 @@ interface Props {
 }
 
 export default function Toast({ message }: Props) {
-  return <div className="status-toast">{message}</div>;
+  return (
+    <div className="toast">
+      <span className="toast-check">✓</span>
+      {message}
+    </div>
+  );
 }

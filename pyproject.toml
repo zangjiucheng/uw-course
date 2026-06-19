@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "uw-course"
-version = "3.0.0"
+version = "3.1.0"
 description = "A browser-based University of Waterloo course planner backed by live MongoDB data"
 authors = [
     { name = "Jiucheng Zang", email = "git.jiucheng@gmail.com" }
@@ -41,8 +41,11 @@ uw-course = "uw_course.main:main"
 [tool.setuptools.packages.find]
 include = ["uw_course*"]
 
+# The built Vite frontend (index.html + hashed assets/* + icon) is copied into
+# uw_course/web/static before packaging; ship all of it so `uw-course` serves
+# the web UI straight from a PyPI install. See scripts/build_frontend.sh.
 [tool.setuptools.package-data]
-"uw_course.web" = ["templates/*.html", "static/*.css", "static/*.js", "static/*.png"]
+"uw_course.web" = ["static/*", "static/assets/*"]
 
 [tool.pypi]
 repository = "https://pypi.org/project/uw-course"

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { forwardRef, useImperativeHandle, useState } from 'react';
 
 const GOOSE_IMAGES = [
   'https://uwaterloo.ca/support/sites/default/files/styles/uw_is_media_x_large/public/uploads/images/finalist-3.png?itok=D1PdGsZQ',
@@ -19,6 +19,10 @@ interface GooseSprite {
   left: number;
 }
 
+export interface GooseHandle {
+  release: () => void;
+}
+
 interface Props {
   onToast: (message: string) => void;
 }
@@ -26,7 +30,7 @@ interface Props {
 let nextId = 0;
 let totalCount = 0;
 
-export default function GooseEasterEgg({ onToast }: Props) {
+const GooseEasterEgg = forwardRef<GooseHandle, Props>(function GooseEasterEgg({ onToast }, ref) {
   const [geese, setGeese] = useState<GooseSprite[]>([]);
 
   function releaseGoose() {
@@ -52,48 +56,30 @@ export default function GooseEasterEgg({ onToast }: Props) {
 
     setGeese((prev) => [...prev, ...newGeese]);
     totalCount += burstSize;
-    onToast(
-      totalCount % 16 === 0 ? 'Goose storm unlocked.' : 'Honk. Goose rain activated.'
-    );
+    onToast(totalCount % 16 === 0 ? 'Goose storm unlocked.' : 'Honk. Goose rain activated.');
   }
 
+  useImperativeHandle(ref, () => ({ release: releaseGoose }));
+
   return (
-    <>
-      <div className="goose-cluster">
-        <a
-          className="goose-credit"
-          href="https://uwaterloo.ca/support/2024-uwaterloo-fsr-drawing-contest"
-          target="_blank"
-          rel="noreferrer"
-        >
-          Goose artwork credit
-        </a>
-        <button
-          type="button"
-          className="goose-button"
-          aria-label="Release the goose"
-          onClick={releaseGoose}
-        >
-          <img src={GOOSE_IMAGES[0]} alt="Canada goose easter egg" />
-        </button>
-      </div>
-      <div className="goose-stage" aria-hidden="true">
-        {geese.map((goose) => (
-          <img
-            key={goose.id}
-            className="goose-sprite"
-            src={goose.image}
-            alt=""
-            style={{
-              left: `${goose.left}vw`,
-              width: `${goose.size}px`,
-              height: `${goose.size}px`,
-              animationDuration: `${goose.duration}s`,
-              animationDelay: `${goose.delay}s`,
-            }}
-          />
-        ))}
-      </div>
-    </>
+    <div className="goose-stage" aria-hidden="true">
+      {geese.map((goose) => (
+        <img
+          key={goose.id}
+          className="goose-sprite"
+          src={goose.image}
+          alt=""
+          style={{
+            left: `${goose.left}vw`,
+            width: `${goose.size}px`,
+            height: `${goose.size}px`,
+            animationDuration: `${goose.duration}s`,
+            animationDelay: `${goose.delay}s`,
+          }}
+        />
+      ))}
+    </div>
   );
-}
+});
+
+export default GooseEasterEgg;

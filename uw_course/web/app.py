@@ -17,6 +17,15 @@ def create_app() -> Flask:
 
     @app.get("/")
     def index():
+        if not os.path.exists(os.path.join(_STATIC_DIR, "index.html")):
+            return (
+                "<h1>UW Course Planner</h1>"
+                "<p>The web interface has not been built yet. Build the frontend with "
+                "<code>scripts/build_frontend.sh</code> (or "
+                "<code>npm --prefix frontend ci &amp;&amp; npm --prefix frontend run build</code>) "
+                "before running the server, or install the published package from PyPI.</p>",
+                500,
+            )
         return send_from_directory(_STATIC_DIR, "index.html")
 
     @app.get("/api/terms")

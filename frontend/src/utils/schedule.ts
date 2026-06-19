@@ -27,6 +27,55 @@ export function parseClockToMinutes(rawClock: string | null | undefined): number
   return hours * 60 + minutes;
 }
 
+const DAY_SHORT: Record<string, string> = {
+  Mon: 'M',
+  Tue: 'T',
+  Wed: 'W',
+  Thu: 'Th',
+  Fri: 'F',
+  Sat: 'Sa',
+  Sun: 'Su',
+};
+
+/** Compact day string, e.g. ["Mon","Wed","Fri"] -> "MWF". */
+export function formatDays(days: string[] | null | undefined): string {
+  if (!days?.length) return '';
+  return days.map((day) => DAY_SHORT[day] ?? day).join('');
+}
+
+/** 24h "HH:MM" -> 12h "h:mm" with a trailing lowercase meridiem letter. */
+export function formatClock(rawClock: string | null | undefined): string {
+  if (!rawClock) return '';
+  const [hourStr, minuteStr] = rawClock.split(':');
+  let hours = Number(hourStr);
+  const meridiem = hours >= 12 ? 'p' : 'a';
+  hours %= 12;
+  if (hours === 0) hours = 12;
+  return `${hours}:${minuteStr}${meridiem}`;
+}
+
+/** "10:00a–11:20a" style range, omitting empties gracefully. */
+export function formatTimeRange(
+  start: string | null | undefined,
+  end: string | null | undefined
+): string {
+  const startLabel = formatClock(start);
+  const endLabel = formatClock(end);
+  if (startLabel && endLabel) return `${startLabel}–${endLabel}`;
+  return startLabel || endLabel || '';
+}
+
+/** Full day + time summary, e.g. "MWF 10:00a–11:20a". */
+export function formatDayTime(section: {
+  days: string[] | null | undefined;
+  start_time: string | null;
+  end_time: string | null;
+}): string {
+  const days = formatDays(section.days);
+  const time = formatTimeRange(section.start_time, section.end_time);
+  return [days, time].filter(Boolean).join(' ');
+}
+
 export interface TimelineConfig {
   startHour: number;
   endHour: number;
