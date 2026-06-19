@@ -2,8 +2,6 @@
 .gitignore
 *.md
 *.png
-demo.png
-docs-web-screenshot.png
 frontend/node_modules
 frontend/dist
 uw_course/web/static/
